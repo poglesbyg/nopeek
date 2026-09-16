@@ -15,6 +15,8 @@ none of which a linter can reach.
 
 from __future__ import annotations
 
+from importlib.metadata import PackageNotFoundError, version
+
 from ._types import Leak, LeakError, Report
 from .isolation import verify_isolation
 from .lookahead import verify
@@ -33,4 +35,7 @@ __all__ = [
     "verify_split",
 ]
 
-__version__ = "0.1.0"
+try:
+    __version__ = version("nopeek")
+except PackageNotFoundError:  # pragma: no cover - running from a source tree
+    __version__ = "0.0.0+unknown"

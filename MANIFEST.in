@@ -1,0 +1,9 @@
+# The sdist should be self-testing: a packager who builds from it must be able
+# to run the suite. That needs conftest.py (fixtures and the rogues' gallery of
+# pipelines), the example the README quotes, and the survey harness that
+# tests/test_survey.py imports.
+include LICENSE README.md conftest.py
+recursive-include tests *.py
+recursive-include examples *.py
+recursive-include survey *.py *.toml *.md
+prune .github

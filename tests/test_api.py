@@ -208,3 +208,19 @@ def test_categorical_and_boolean_columns_are_poisoned():
 
     bad = nopeek.verify(reads_the_last_flag, frame, time=TIME, group=GROUP, strategy="poison")
     assert set(bad.leaking_columns) == {"ever", "final_note"}
+
+
+def test_version_is_not_duplicated():
+    """__version__ comes from installed metadata, so it cannot drift from pyproject.
+
+    Read with a regex rather than tomllib, which is not stdlib on the oldest
+    Python this project supports.
+    """
+    import re
+    from pathlib import Path
+
+    text = (Path(__file__).resolve().parents[1] / "pyproject.toml").read_text()
+    table = text.split("[project]", 1)[1].split("\n[", 1)[0]
+    declared = re.search(r'^version = "([^"]+)"', table, re.M)
+    assert declared is not None, "no version in the [project] table"
+    assert nopeek.__version__ == declared.group(1)

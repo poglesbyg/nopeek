@@ -1,0 +1,68 @@
+# Releasing
+
+A PyPI version is permanent. It can be yanked, but the number can never be
+reused, so the checks below run before anything is uploaded rather than after.
+
+## One-time setup: Trusted Publishing
+
+No API token needs to exist anywhere. PyPI verifies the release workflow's
+identity directly.
+
+1. On PyPI, go to **Your projects → Publishing → Add a pending publisher**
+   (a *pending* publisher is the right one — the project does not exist yet).
+2. Fill in:
+   - PyPI project name: `nopeek`
+   - Owner: `poglesbyg`
+   - Repository: `nopeek`
+   - Workflow name: `release.yml`
+   - Environment name: `pypi`
+3. In the GitHub repo, create an environment named `pypi`
+   (**Settings → Environments → New environment**). Adding yourself as a
+   required reviewer means every upload needs an explicit approval.
+
+## Cutting a release
+
+1. Bump `version` in `pyproject.toml`. Nothing else: `__version__` is read from
+   installed metadata, so there is no second copy to forget.
+2. Commit, tag and push:
+   ```bash
+   git commit -am "Release 0.1.0" && git tag v0.1.0 && git push --follow-tags
+   ```
+3. Publish a GitHub Release for the tag. That fires `release.yml`, which runs
+   the suite, builds, runs `twine check`, and uploads.
+
+## Publishing by hand instead
+
+If Trusted Publishing is not set up yet:
+
+```bash
+uv build
+uv run --with twine twine check dist/*
+uv publish --token pypi-...        # or set UV_PUBLISH_TOKEN
+```
+
+Get the token from PyPI → Account settings → API tokens. Scope it to this
+project once the project exists; the first upload needs an account-wide token.
+
+## Before the first upload
+
+Worth doing once, by hand, because the first version of a package is the one
+nobody can fix later:
+
+```bash
+uv build
+tar tzf dist/*.tar.gz            # sdist should contain tests and conftest.py
+python -m zipfile -l dist/*.whl  # wheel should contain nopeek/ and py.typed, nothing else
+```
+
+Then install the built wheel into an empty environment and check it from a
+consumer's point of view — that the import works, that the pytest fixture is
+discovered through the entry point, and that a planted leak is still caught.
+An editable install in the development checkout will pass even when packaging
+is broken, so it proves nothing on its own.
+
+Consider uploading to TestPyPI first:
+
+```bash
+uv publish --publish-url https://test.pypi.org/legacy/ --token pypi-...
+```

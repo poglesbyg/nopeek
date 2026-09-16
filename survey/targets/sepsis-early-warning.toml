@@ -1,0 +1,22 @@
+name = "poglesbyg/sepsis-early-warning"
+description = "ICU early-warning features: LOCF, recency, rolling windows, clinical scores."
+url = "https://github.com/poglesbyg/sepsis-early-warning"
+expect = "clean"
+
+[source]
+kind = "git"
+url = "https://github.com/poglesbyg/sepsis-early-warning"
+subdir = "src"
+
+[entry]
+pipeline = "sepsis.features:build_features"
+data = "survey.fixtures:sepsis_stays"
+
+[roles]
+time = "hour"
+group = "patient_id"
+ignore = ["SepsisLabel"]
+preserve = ["Age", "Gender", "Unit1", "Unit2", "HospAdmTime"]
+
+[limits]
+timeout_seconds = 900

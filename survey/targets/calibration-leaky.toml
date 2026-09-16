@@ -1,0 +1,14 @@
+name = "calibration/leaky"
+description = "Known-bad pipeline: a bfill and a whole-dataset z-score. Must be caught."
+expect = "leaks"
+
+[source]
+kind = "none"
+
+[entry]
+pipeline = "survey.fixtures:leaky_pipeline"
+data = "survey.fixtures:panel"
+
+[roles]
+time = "t"
+group = "entity"

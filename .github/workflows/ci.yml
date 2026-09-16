@@ -43,3 +43,21 @@ jobs:
           python-version: "3.10"
       - run: pip install -e ".[dev]" "pandas==1.5.3" "numpy==1.23.5"
       - run: pytest
+
+  survey-calibration:
+    # The survey harness reports a reassuring leak rate of zero when it is
+    # broken, so CI runs its two calibration targets: one must come back clean,
+    # the other must come back leaking, or the job fails.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - run: python -m survey --only calibration/clean calibration/leaky --out survey-results
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: survey-results
+          path: survey-results/

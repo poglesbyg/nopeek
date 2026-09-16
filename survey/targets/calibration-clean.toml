@@ -1,0 +1,14 @@
+name = "calibration/clean"
+description = "Known-good pipeline. If this reports a leak, the harness is broken."
+expect = "clean"
+
+[source]
+kind = "none"
+
+[entry]
+pipeline = "survey.fixtures:clean_pipeline"
+data = "survey.fixtures:panel"
+
+[roles]
+time = "t"
+group = "entity"

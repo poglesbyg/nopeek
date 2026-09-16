@@ -131,6 +131,21 @@ def test_features_do_not_cross_admissions(nopeek, stays):
     nopeek.isolated(build_features, stays, group="patient_id", time="hour")
 ```
 
+## The survey
+
+[`survey/`](survey/) is a reproducible harness for one question: how often do
+real pipelines leak? Each pipeline surveyed is a checked-in TOML file naming the
+source, the callable, the data maker and the column roles, so a result can be
+disputed with a pull request rather than an argument.
+
+```bash
+python -m survey            # writes REPORT.md, results.csv, results.json
+```
+
+Two targets are calibration rows — one must come back clean, one must come back
+leaking — and the run exits non-zero if either is wrong. A harness that silently
+fails to run anything reports that nothing leaks, which reads like good news.
+
 ## What this does not claim
 
 - **It proves timing, not causality.** A clean report says the code *could* have

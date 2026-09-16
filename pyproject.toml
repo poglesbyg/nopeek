@@ -73,7 +73,12 @@ select = ["E", "F", "W", "I", "UP", "B", "BLE", "C4", "SIM", "RUF"]
 "tests/*" = ["B008"]
 
 [tool.mypy]
-python_version = "3.10"
+# 3.12 rather than the 3.10 floor: numpy's stubs use PEP 695 `type` statements,
+# which mypy refuses to parse when asked to analyse as an older Python, and
+# skipping those stubs would lose most of what type-checking this code buys.
+# The floor is guarded by actually running the suite on 3.10 in CI, which is a
+# stronger check than a static approximation of it anyway.
+python_version = "3.12"
 mypy_path = "src:."
 packages = ["nopeek", "survey"]
 strict = true

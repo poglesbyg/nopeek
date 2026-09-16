@@ -8,8 +8,6 @@ the difference between "nothing leaks" and "nothing ran".
 
 from __future__ import annotations
 
-from typing import cast
-
 import numpy as np
 import pandas as pd
 
@@ -40,30 +38,24 @@ def panel(n_entities: int = 8, n_steps: int = 40, seed: int = 0) -> pd.DataFrame
                 }
             )
         )
-    return cast("pd.DataFrame", pd.concat(frames, ignore_index=True))
+    return pd.concat(frames, ignore_index=True)
 
 
 def clean_pipeline(df: pd.DataFrame) -> pd.DataFrame:
     grouped = df.groupby(GROUP)["value"]
-    return cast(
-        "pd.DataFrame",
-        df[[GROUP, TIME]].assign(
-            carried=grouped.transform(lambda s: s.ffill()),
-            mean_5=grouped.transform(lambda s: s.rolling(5, min_periods=1).mean()),
-            seen=grouped.transform(lambda s: s.notna().cumsum()),
-        ),
+    return df[[GROUP, TIME]].assign(
+        carried=grouped.transform(lambda s: s.ffill()),
+        mean_5=grouped.transform(lambda s: s.rolling(5, min_periods=1).mean()),
+        seen=grouped.transform(lambda s: s.notna().cumsum()),
     )
 
 
 def leaky_pipeline(df: pd.DataFrame) -> pd.DataFrame:
     grouped = df.groupby(GROUP)["value"]
-    return cast(
-        "pd.DataFrame",
-        df[[GROUP, TIME]].assign(
-            carried=grouped.transform(lambda s: s.ffill()),
-            filled=grouped.transform(lambda s: s.ffill().bfill()),
-            scaled=(df["value"] - df["value"].mean()) / df["value"].std(),
-        ),
+    return df[[GROUP, TIME]].assign(
+        carried=grouped.transform(lambda s: s.ffill()),
+        filled=grouped.transform(lambda s: s.ffill().bfill()),
+        scaled=(df["value"] - df["value"].mean()) / df["value"].std(),
     )
 
 
@@ -89,4 +81,4 @@ def sepsis_stays() -> pd.DataFrame:
         frame["hospital"] = "A"
         frame["hour"] = np.arange(n_hours)
         frames.append(frame)
-    return cast("pd.DataFrame", pd.concat(frames, ignore_index=True))
+    return pd.concat(frames, ignore_index=True)

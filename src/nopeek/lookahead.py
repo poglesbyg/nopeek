@@ -24,7 +24,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from ._compare import abs_delta, differs
+from ._compare import abs_delta, differs, differs_at_all
 from ._poison import poison_future
 from ._types import Leak, Report, Strategy
 
@@ -47,7 +47,7 @@ def verify(
     ignore: Iterable[str] = (),
     preserve: Iterable[str] = (),
     rtol: float = 1e-7,
-    atol: float = 0.0,
+    atol: float | None = None,
     seed: int = 0,
 ) -> Report:
     """Check that ``fn`` is point-in-time correct on ``data``.
@@ -83,6 +83,11 @@ def verify(
     preserve:
         Input columns that poisoning must leave alone, for values the pipeline is
         entitled to treat as static (age, site, admission time).
+    rtol, atol:
+        Float comparison tolerance. ``atol=None`` derives an absolute floor from
+        the data's own dtype, so float32 is judged at float32 resolution; pass
+        ``atol=0.0`` to demand bit-identical output. Differences smaller than the
+        tolerance are reported in ``report.notes`` rather than as findings.
 
     Returns
     -------
@@ -140,19 +145,19 @@ def verify(
                 continue
 
             report.checks += 1
-            report.leaks.extend(
-                _compare_at_cut(
-                    baseline,
-                    observed,
-                    cut=cut,
-                    time=time,
-                    key_cols=key_cols,
-                    compare=compare,
-                    strategy=strat,
-                    rtol=rtol,
-                    atol=atol,
-                )
+            leaks, notes = _compare_at_cut(
+                baseline,
+                observed,
+                cut=cut,
+                time=time,
+                key_cols=key_cols,
+                compare=compare,
+                strategy=strat,
+                rtol=rtol,
+                atol=atol,
             )
+            report.leaks.extend(leaks)
+            report.notes.extend(notes)
     return report
 
 
@@ -166,9 +171,10 @@ def _compare_at_cut(
     compare: list[str],
     strategy: Strategy,
     rtol: float,
-    atol: float,
-) -> list[Leak]:
+    atol: float | None,
+) -> tuple[list[Leak], list[str]]:
     leaks: list[Leak] = []
+    notes: list[str] = []
     present = [c for c in compare if c in observed.columns]
     for column in compare:
         if column not in observed.columns:
@@ -182,7 +188,7 @@ def _compare_at_cut(
                 )
             )
     if not present:
-        return leaks
+        return leaks, notes
 
     wanted = list(key_cols) + present
     left = baseline.loc[baseline[time] <= cut, wanted]
@@ -207,12 +213,18 @@ def _compare_at_cut(
             )
         )
     if merged.empty:
-        return leaks
+        return leaks, notes
 
     times = merged[time]
     for column in present:
         mask = differs(merged[column + _LEFT], merged[column + _RIGHT], rtol=rtol, atol=atol)
         if not mask.any():
+            # Different, but by less than the data's numerical resolution: an
+            # artefact of float arithmetic rather than a leak. Worth saying,
+            # not worth failing over.
+            note = _residual_note(column, merged[column + _LEFT], merged[column + _RIGHT])
+            if note is not None:
+                notes.append(note)
             continue
         hit = times[mask]
         first = int(np.flatnonzero(mask)[0])
@@ -234,7 +246,20 @@ def _compare_at_cut(
                 },
             )
         )
-    return leaks
+    return leaks, notes
+
+
+def _residual_note(column: str, left: pd.Series, right: pd.Series) -> str | None:
+    """Describe a difference too small to be a leak, or None if there is none."""
+    residual = differs_at_all(left, right)
+    if not residual.any():
+        return None
+    delta = abs_delta(left, right, residual)
+    size = "" if delta is None else f", max |delta| {delta:.3g}"
+    return (
+        f"{column}: differs only within float tolerance "
+        f"({int(residual.sum())} row(s){size}) -- round-off, not a leak"
+    )
 
 
 def _default_key(time: str, group: str | None) -> tuple[str, ...]:

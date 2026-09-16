@@ -28,6 +28,7 @@ from .lookahead import (
     _default_key,
     _require_columns,
     _require_frame,
+    _residual_note,
 )
 
 _LEFT = "__nopeek_all"
@@ -47,7 +48,7 @@ def verify_isolation(
     ignore: Iterable[str] = (),
     check_order: bool = True,
     rtol: float = 1e-7,
-    atol: float = 0.0,
+    atol: float | None = None,
 ) -> Report:
     """Check that ``fn`` treats each entity independently.
 
@@ -95,18 +96,18 @@ def verify_isolation(
             )
             continue
         report.checks += 1
-        report.leaks.extend(
-            _diff(
-                baseline.loc[baseline[group] == entity],
-                observed,
-                key_cols=key_cols,
-                compare=compare,
-                kind="cross_group",
-                detail=f"value changed when entity {entity!r} was built alone",
-                rtol=rtol,
-                atol=atol,
-            )
+        leaks, notes = _diff(
+            baseline.loc[baseline[group] == entity],
+            observed,
+            key_cols=key_cols,
+            compare=compare,
+            kind="cross_group",
+            detail=f"value changed when entity {entity!r} was built alone",
+            rtol=rtol,
+            atol=atol,
         )
+        report.leaks.extend(leaks)
+        report.notes.extend(notes)
 
     if check_order:
         report.extend(
@@ -133,7 +134,7 @@ def _check_order(
     key_cols: tuple[str, ...],
     compare: list[str],
     rtol: float,
-    atol: float,
+    atol: float | None,
 ) -> Report:
     order = list(dict.fromkeys(frame[group]))[::-1]
     rank = {entity: i for i, entity in enumerate(order)}
@@ -152,18 +153,18 @@ def _check_order(
         )
         return report
     report.checks += 1
-    report.leaks.extend(
-        _diff(
-            baseline,
-            observed,
-            key_cols=key_cols,
-            compare=compare,
-            kind="cross_group",
-            detail="value depends on the order entities appear in",
-            rtol=rtol,
-            atol=atol,
-        )
+    leaks, notes = _diff(
+        baseline,
+        observed,
+        key_cols=key_cols,
+        compare=compare,
+        kind="cross_group",
+        detail="value depends on the order entities appear in",
+        rtol=rtol,
+        atol=atol,
     )
+    report.leaks.extend(leaks)
+    report.notes.extend(notes)
     return report
 
 
@@ -176,12 +177,13 @@ def _diff(
     kind: Any,
     detail: str,
     rtol: float,
-    atol: float,
-) -> list[Leak]:
+    atol: float | None,
+) -> tuple[list[Leak], list[str]]:
     leaks: list[Leak] = []
+    notes: list[str] = []
     present = [c for c in compare if c in right_frame.columns]
     if not present:
-        return leaks
+        return leaks, notes
     wanted = list(key_cols) + present
     left = left_frame[wanted]
     merged = left.merge(
@@ -198,11 +200,14 @@ def _diff(
             )
         )
     if merged.empty:
-        return leaks
+        return leaks, notes
 
     for column in present:
         mask = differs(merged[column + _LEFT], merged[column + _RIGHT], rtol=rtol, atol=atol)
         if not mask.any():
+            note = _residual_note(column, merged[column + _LEFT], merged[column + _RIGHT])
+            if note is not None:
+                notes.append(note)
             continue
         first = int(np.flatnonzero(mask)[0])
         leaks.append(
@@ -219,7 +224,7 @@ def _diff(
                 },
             )
         )
-    return leaks
+    return leaks, notes
 
 
 def _choose_groups(

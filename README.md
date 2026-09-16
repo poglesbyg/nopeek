@@ -135,6 +135,33 @@ Columns that are genuinely static and known up front — age, site, sex — can 
 held back from poisoning with `preserve=[...]`, and a label that is allowed to
 depend on the future belongs in `ignore=[...]`.
 
+Poisoning replaces values in their own dtype, so a float32 feature matrix gets
+float32 poison and an `int8` column gets `int8`-sized poison. It is deliberately
+extreme, which makes it good at exposing numerical coupling as well as outright
+leaks: a pipeline that computes a rolling statistic over a whole frame at once
+carries floating-point accumulator state across entity boundaries, and poisoning
+will show that where ordinary data would not. Check the magnitude against
+`verify_isolation`, which uses real values, before deciding how much a finding
+like that matters.
+
+## Tolerance
+
+Floats are compared with a relative tolerance *and* an absolute floor, because a
+relative tolerance alone can never call `0.0` and `1e-7` close — and a rolling
+standard deviation over a constant window is exactly that pair in float32. The
+floor is derived from the data's own dtype, so float32 is judged at float32
+resolution and float64 at float64.
+
+Differences smaller than the tolerance are not silently dropped. They appear in
+`report.notes`:
+
+```
+pH_std24: differs only within float tolerance (19 row(s), max |delta| 1.65e-07)
+  -- round-off, not a leak
+```
+
+Pass `atol=0.0` to demand bit-identical output and have those become findings.
+
 ## In your test suite
 
 Installing nopeek registers a pytest fixture, so the check runs in CI rather than

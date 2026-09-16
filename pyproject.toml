@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "nopeek"
-version = "0.1.0"
+version = "0.1.1"
 description = "Verify that a data pipeline never reads the future"
 readme = "README.md"
 license = "MIT"

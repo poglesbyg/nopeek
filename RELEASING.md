@@ -35,14 +35,21 @@ identity directly.
 
 If Trusted Publishing is not set up yet:
 
+Create the token first, at PyPI → Account settings → **API tokens**. It is a
+long string beginning `pypi-AgEIcHlwaS5vcmc...`; `pypi-...` below is a
+placeholder, and pasting it literally gets you
+`403 Invalid or non-existent authentication information`. Scope it to this
+project once the project exists — the first upload needs an account-wide token.
+
 ```bash
 uv build
-uv run --with twine twine check dist/*
-uv publish --token pypi-...        # or set UV_PUBLISH_TOKEN
+uv run --with "twine>=6.1" twine check dist/*
+export UV_PUBLISH_TOKEN="pypi-AgEI..."   # the real token, not this
+uv publish
 ```
 
-Get the token from PyPI → Account settings → API tokens. Scope it to this
-project once the project exists; the first upload needs an account-wide token.
+Putting the token in the environment rather than on the command line keeps it
+out of your shell history.
 
 ## Before the first upload
 
@@ -61,8 +68,10 @@ discovered through the entry point, and that a planted leak is still caught.
 An editable install in the development checkout will pass even when packaging
 is broken, so it proves nothing on its own.
 
-Consider uploading to TestPyPI first:
+Consider uploading to TestPyPI first. It needs its own account and its own
+token — TestPyPI credentials are entirely separate from PyPI's:
 
 ```bash
-uv publish --publish-url https://test.pypi.org/legacy/ --token pypi-...
+UV_PUBLISH_TOKEN="pypi-AgENdGVzdC..." \
+  uv publish --publish-url https://test.pypi.org/legacy/
 ```

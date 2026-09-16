@@ -265,7 +265,7 @@ def _choose_cuts(times: pd.Series, cuts: int | Sequence[Any]) -> list[Any]:
     if cuts < 1:
         raise ValueError("cuts must be >= 1")
 
-    unique = np.sort(pd.unique(times.dropna()))
+    unique = np.sort(np.asarray(pd.unique(times.dropna())))
     if unique.size < 3:
         raise ValueError(
             f"need at least 3 distinct values of the time column to cut, got {unique.size}"

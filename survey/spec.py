@@ -8,11 +8,21 @@ column roles -- not a screenshot of a notebook. Adding a target is a pull reques
 
 from __future__ import annotations
 
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-import tomllib
+if sys.version_info >= (3, 11):
+    import tomllib
+else:  # pragma: no cover - exercised on the oldest-supported leg of CI
+    try:
+        import tomli as tomllib
+    except ModuleNotFoundError as exc:  # pragma: no cover
+        raise ModuleNotFoundError(
+            "the survey harness reads TOML, which needs Python 3.11+ for tomllib "
+            "or `uv pip install tomli` on 3.10"
+        ) from exc
 
 KINDS = ("none", "local", "git", "pypi")
 

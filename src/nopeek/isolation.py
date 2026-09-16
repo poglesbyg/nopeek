@@ -229,7 +229,7 @@ def _choose_groups(
         return list(groups)
     if max_groups < 1:
         raise ValueError("max_groups must be >= 1")
-    unique = np.sort(pd.unique(values.dropna()))
+    unique = np.sort(np.asarray(pd.unique(values.dropna())))
     if unique.size == 0:
         raise ValueError("group column has no non-null values")
     if max_groups >= unique.size:

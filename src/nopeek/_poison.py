@@ -16,6 +16,7 @@ distinction is in the report, because the two have very different fixes.
 from __future__ import annotations
 
 from collections.abc import Iterable
+from typing import cast
 
 import numpy as np
 import pandas as pd
@@ -67,11 +68,11 @@ def _poison_column(
     if pdt.is_bool_dtype(dtype):
         flipped = ~series.to_numpy(dtype="bool", na_value=False)[future]
         out.iloc[future] = flipped
-        return out.astype(dtype)
+        return cast("pd.Series", out.astype(dtype))
 
     if pdt.is_float_dtype(dtype):
         out.iloc[future] = rng.normal(_FAR_LOC, _FAR_SCALE, n)
-        return out.astype(dtype)
+        return cast("pd.Series", out.astype(dtype))
 
     if pdt.is_integer_dtype(dtype):
         info = np.iinfo(
@@ -80,26 +81,27 @@ def _poison_column(
         lo = max(info.min // 2, -(2**31))
         hi = min(info.max // 2, 2**31)
         out.iloc[future] = rng.integers(lo, hi, n)
-        return out.astype(dtype)
+        return cast("pd.Series", out.astype(dtype))
 
     if pdt.is_datetime64_any_dtype(dtype):
         offsets = pd.to_timedelta(rng.integers(3650, 7300, n), unit="D")
         out.iloc[future] = series.iloc[future].to_numpy() + offsets.to_numpy()
-        return out
+        return cast("pd.Series", out)
 
     if pdt.is_timedelta64_dtype(dtype):
         out.iloc[future] = pd.to_timedelta(rng.integers(3650, 7300, n), unit="D").to_numpy()
-        return out
+        return cast("pd.Series", out)
 
     if isinstance(dtype, pd.CategoricalDtype):
         # Adding a category rather than reusing an existing one keeps the poison
         # distinguishable from any legitimate value.
         widened = series.cat.add_categories([_SENTINEL])
-        widened.iloc[future] = _SENTINEL
-        return widened
+        # .where rather than an .iloc assignment: it keeps the categorical dtype
+        # and does not need a scalar written through a positional indexer.
+        return cast("pd.Series", widened.where(~future, _SENTINEL))
 
     if pdt.is_object_dtype(dtype) or pdt.is_string_dtype(dtype):
         out.iloc[future] = _SENTINEL
-        return out
+        return cast("pd.Series", out)
 
     raise TypeError(f"no poison recipe for dtype {dtype!r}")

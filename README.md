@@ -20,7 +20,9 @@ def features(df):
     out["balance_mean_3d"] = grouped.transform(lambda s: s.rolling(3, min_periods=1).mean())
     return out
 
+
 import nopeek
+
 print(nopeek.verify(features, data, time="day", group="account"))
 ```
 
@@ -39,10 +41,22 @@ the output above is what it prints.
 ## Install
 
 ```bash
-pip install nopeek
+uv add nopeek        # or: pip install nopeek
 ```
 
 Requires Python 3.10+, numpy and pandas. Nothing else.
+
+Working on nopeek itself:
+
+```bash
+git clone https://github.com/poglesbyg/nopeek && cd nopeek
+uv sync --extra dev
+uv run pytest
+uv run ruff check . && uv run ruff format --check . && uv run mypy
+```
+
+`uv.lock` is not committed, because this is a library: CI resolves fresh so a
+dependency that breaks it is caught here rather than in your project.
 
 ## The three checks
 
@@ -126,6 +140,7 @@ once by hand:
 ```python
 def test_features_are_point_in_time(nopeek, stays):
     nopeek.point_in_time(build_features, stays, time="hour", group="patient_id")
+
 
 def test_features_do_not_cross_admissions(nopeek, stays):
     nopeek.isolated(build_features, stays, group="patient_id", time="hour")

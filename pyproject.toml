@@ -85,5 +85,5 @@ ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 # The survey imports its targets' code, which is not installed here by design.
-module = ["sepsis.*", "tomli", "tomllib"]
+module = ["sepsis.*", "tomli"]
 ignore_missing_imports = true

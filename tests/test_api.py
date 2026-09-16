@@ -173,3 +173,38 @@ def test_all_exports_exist():
 def test_nan_only_column_compares_equal():
     frame = pd.DataFrame({GROUP: "e0", TIME: np.arange(10), "x": np.full(10, np.nan)})
     assert nopeek.verify(expanding_mean, frame, time=TIME, group=GROUP)
+
+
+def test_categorical_and_boolean_columns_are_poisoned():
+    """Non-numeric dtypes must be poisoned too, or leaks through them go unseen."""
+    n = 12
+    frame = pd.DataFrame(
+        {
+            GROUP: "e0",
+            TIME: np.arange(n),
+            "ward": pd.Categorical(["icu"] * (n // 2) + ["hdu"] * (n // 2)),
+            # False throughout the early hours, so a max over the group is
+            # decided by the future and not by anything already observed.
+            "ventilated": np.arange(n) >= n - 3,
+            "note": [f"n{i}" for i in range(n)],
+        }
+    )
+
+    def reads_the_last_ward(df):
+        last = df.groupby(GROUP)["ward"].transform("last")
+        return df[[GROUP, TIME]].assign(ward_at_end=last.astype(str))
+
+    report = nopeek.verify(
+        reads_the_last_ward, frame, time=TIME, group=GROUP, strategy="poison"
+    )
+    assert not report.ok, "a categorical column must be poisoned, not skipped"
+    assert not report.notes, f"nothing should have been left unpoisoned: {report.notes}"
+
+    def reads_the_last_flag(df):
+        return df[[GROUP, TIME]].assign(
+            ever=df.groupby(GROUP)["ventilated"].transform("max"),
+            final_note=df.groupby(GROUP)["note"].transform("last"),
+        )
+
+    bad = nopeek.verify(reads_the_last_flag, frame, time=TIME, group=GROUP, strategy="poison")
+    assert set(bad.leaking_columns) == {"ever", "final_note"}

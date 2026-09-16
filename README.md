@@ -46,6 +46,9 @@ uv add nopeek        # or: pip install nopeek
 
 Requires Python 3.10+, numpy and pandas. Nothing else.
 
+Tested on Python 3.10 through 3.14, against pandas 1.5.3/numpy 1.23.5 at the
+floor and current pandas 3.x/numpy 2.x at the top.
+
 Working on nopeek itself:
 
 ```bash

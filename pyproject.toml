@@ -1,0 +1,83 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nopeek"
+version = "0.1.0"
+description = "Verify that a data pipeline never reads the future"
+readme = "README.md"
+license = { file = "LICENSE" }
+authors = [{ name = "Paul Greenwood", email = "poglesbyg@gmail.com" }]
+requires-python = ">=3.10"
+keywords = [
+    "data-leakage",
+    "lookahead-bias",
+    "point-in-time",
+    "time-series",
+    "backtesting",
+    "machine-learning",
+    "pytest",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Framework :: Pytest",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Software Development :: Testing",
+    "Typing :: Typed",
+]
+dependencies = [
+    "numpy>=1.23",
+    "pandas>=1.5",
+]
+
+[project.urls]
+Homepage = "https://github.com/poglesbyg/nopeek"
+Repository = "https://github.com/poglesbyg/nopeek"
+Issues = "https://github.com/poglesbyg/nopeek/issues"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4",
+    "hypothesis>=6.90",
+    "mypy>=1.8",
+    "ruff>=0.5",
+    "pandas-stubs",
+]
+
+[project.entry-points.pytest11]
+nopeek = "nopeek.plugin"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+nopeek = ["py.typed"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 95
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "BLE", "C4", "SIM", "RUF"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["B008"]
+
+[tool.mypy]
+python_version = "3.10"
+mypy_path = "src"
+packages = ["nopeek"]
+strict = true
+warn_unreachable = true
+
+[[tool.mypy.overrides]]
+module = ["pandas.*"]
+ignore_missing_imports = true

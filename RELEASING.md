@@ -8,14 +8,21 @@ reused, so the checks below run before anything is uploaded rather than after.
 No API token needs to exist anywhere. PyPI verifies the release workflow's
 identity directly.
 
-1. On PyPI, go to **Your projects → Publishing → Add a pending publisher**
-   (a *pending* publisher is the right one — the project does not exist yet).
-2. Fill in:
-   - PyPI project name: `nopeek`
+The project exists on PyPI, so this is an ordinary trusted publisher rather
+than the *pending* kind (pending publishers are only for projects that have
+never been published).
+
+1. Go to **https://pypi.org/manage/project/nopeek/settings/publishing/** — or
+   Your projects → Manage → **Publishing** in the sidebar.
+2. Under **GitHub**, fill in:
    - Owner: `poglesbyg`
-   - Repository: `nopeek`
+   - Repository name: `nopeek`
    - Workflow name: `release.yml`
    - Environment name: `pypi`
+
+   The environment is optional as far as PyPI is concerned, but `release.yml`
+   declares `environment: pypi`, so it has to match or the OIDC claim will be
+   rejected.
 3. In the GitHub repo, create an environment named `pypi`
    (**Settings → Environments → New environment**). Adding yourself as a
    required reviewer means every upload needs an explicit approval.

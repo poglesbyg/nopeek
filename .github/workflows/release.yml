@@ -19,6 +19,21 @@ jobs:
       # Never ship something the suite has not passed on.
       - run: uv sync --extra dev --python 3.12
       - run: uv run pytest
+      # The 0.1.1 release went out five times because a stale checkout kept
+      # building the previous version. CI cannot be stale, but tagging v0.1.2
+      # while pyproject still says 0.1.1 would publish the wrong thing under the
+      # right name, so the two are checked against each other here.
+      - name: Version matches the release tag
+        if: github.event_name == 'release'
+        run: |
+          version=$(uv run python -c \
+            "import tomllib,pathlib;print(tomllib.loads(pathlib.Path('pyproject.toml').read_text())['project']['version'])")
+          tag="${GITHUB_REF_NAME#v}"
+          echo "pyproject: $version    tag: $tag"
+          if [ "$version" != "$tag" ]; then
+            echo "::error::pyproject version $version does not match release tag $tag"
+            exit 1
+          fi
       - run: uv build
       - run: uv run --with "twine>=6.1" twine check dist/*
       - uses: actions/upload-artifact@v4

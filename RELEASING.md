@@ -27,6 +27,32 @@ never been published).
    (**Settings → Environments → New environment**). Adding yourself as a
    required reviewer means every upload needs an explicit approval.
 
+## Rehearsing it against TestPyPI
+
+An untested publish workflow gets tested by a real release, which is a poor
+place to find out the OIDC claim is misconfigured. `release.yml` therefore has a
+second way in: **Actions → release → Run workflow** publishes to TestPyPI
+instead, as a throwaway `.devN` version numbered from the run, so a rehearsal
+never spends a real version and can be repeated as often as you like.
+
+A dispatch can only reach TestPyPI and a release can only reach PyPI. They are
+separate jobs with separate conditions and separate environments, so neither can
+be mistaken for the other.
+
+Setting it up mirrors the PyPI side, on a separate account:
+
+1. Register at https://test.pypi.org (its accounts and tokens are entirely
+   separate from PyPI's) and enable 2FA.
+2. Because nothing has been published there yet, this one *is* a **pending**
+   publisher: **Your projects → Publishing → Add a pending publisher**, with
+   PyPI project name `nopeek`, owner `poglesbyg`, repository `nopeek`, workflow
+   `release.yml`, environment `testpypi`.
+3. Create a GitHub environment named `testpypi`. Leave this one without a
+   required reviewer — the point of a rehearsal is that it is cheap to run.
+
+A green dispatch exercises the same OIDC handshake, the same environment gate
+and the same publishing action as the real thing. Only the index differs.
+
 ## Cutting a release
 
 1. Bump `version` in `pyproject.toml`. Nothing else: `__version__` is read from
@@ -36,7 +62,11 @@ never been published).
    git commit -am "Release 0.1.0" && git tag v0.1.0 && git push --follow-tags
    ```
 3. Publish a GitHub Release for the tag. That fires `release.yml`, which runs
-   the suite, builds, runs `twine check`, and uploads.
+   the suite, checks the tag against `pyproject.toml`, builds, runs
+   `twine check`, and uploads.
+
+Worth a dispatch against TestPyPI first if anything about the workflow has
+changed since the last release.
 
 ## Publishing by hand instead
 

@@ -1,5 +1,13 @@
 name: release
 
+# Two ways in, and they cannot be confused for each other:
+#
+#   workflow_dispatch  -> TestPyPI, as a throwaway .devN version
+#   a published GitHub Release -> PyPI, at the tagged version
+#
+# A dispatch can never reach PyPI and a release can never reach TestPyPI, so
+# rehearsing the pipeline carries no risk of spending a real version number.
+
 on:
   release:
     types: [published]
@@ -16,9 +24,11 @@ jobs:
       - uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
+
       # Never ship something the suite has not passed on.
       - run: uv sync --extra dev --python 3.12
       - run: uv run pytest
+
       # The 0.1.1 release went out five times because a stale checkout kept
       # building the previous version. CI cannot be stale, but tagging v0.1.2
       # while pyproject still says 0.1.1 would publish the wrong thing under the
@@ -34,6 +44,30 @@ jobs:
             echo "::error::pyproject version $version does not match release tag $tag"
             exit 1
           fi
+
+      # A dry run needs a version TestPyPI has not seen, or the upload is
+      # rejected as a duplicate and the rehearsal tells you nothing. The edit is
+      # to the checkout only and is never committed.
+      - name: Give the dry run a throwaway version
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          uv run python - <<'PY'
+          import pathlib, re, os
+          path = pathlib.Path("pyproject.toml")
+          text = path.read_text()
+          head, sep, rest = text.partition("[project]")
+          table, sep2, tail = rest.partition("\n[")
+          new = re.sub(
+              r'^version = "([^"]+)"',
+              lambda m: f'version = "{m.group(1)}.dev{os.environ["GITHUB_RUN_NUMBER"]}"',
+              table,
+              count=1,
+              flags=re.M,
+          )
+          path.write_text(head + sep + new + sep2 + tail)
+          print("building as", re.search(r'^version = "([^"]+)"', new, re.M).group(1))
+          PY
+
       - run: uv build
       - run: uv run --with "twine>=6.1" twine check dist/*
       - uses: actions/upload-artifact@v4
@@ -41,7 +75,26 @@ jobs:
           name: dist
           path: dist/
 
-  publish:
+  # Rehearsal. Same OIDC handshake, same environment gate, same action -- only
+  # the index differs, so a green run here means the real one will work.
+  testpypi:
+    if: github.event_name == 'workflow_dispatch'
+    needs: build
+    runs-on: ubuntu-latest
+    environment: testpypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+
+  pypi:
+    if: github.event_name == 'release'
     needs: build
     runs-on: ubuntu-latest
     environment: pypi

@@ -57,8 +57,8 @@ Publishing settings field by field.
    the suite, checks the tag against `pyproject.toml`, builds, runs
    `twine check`, and uploads.
 
-Worth a dispatch against TestPyPI first if anything about the workflow has
-changed since the last release.
+Worth a rehearsal dispatch first if anything about the workflow has changed
+since the last release.
 
 ## Publishing by hand instead
 
@@ -97,10 +97,11 @@ discovered through the entry point, and that a planted leak is still caught.
 An editable install in the development checkout will pass even when packaging
 is broken, so it proves nothing on its own.
 
-Consider uploading to TestPyPI first. It needs its own account and its own
-token — TestPyPI credentials are entirely separate from PyPI's:
+Then check the built version against what is already published, because
+`uv publish` uploads every file in `dist/` and a stale one is what turns a
+release into four failed attempts:
 
 ```bash
-UV_PUBLISH_TOKEN="pypi-AgENdGVzdC..." \
-  uv publish --publish-url https://test.pypi.org/legacy/
+grep '^version' pyproject.toml
+ls dist/
 ```

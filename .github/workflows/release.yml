@@ -1,12 +1,15 @@
 name: release
 
-# Two ways in, and they cannot be confused for each other:
+# Two ways in:
 #
-#   workflow_dispatch  -> TestPyPI, as a throwaway .devN version
-#   a published GitHub Release -> PyPI, at the tagged version
+#   a published GitHub Release -> builds the tagged version and uploads it
+#   workflow_dispatch          -> rehearsal; proves the trusted-publishing
+#                                 handshake works without publishing anything
 #
-# A dispatch can never reach PyPI and a release can never reach TestPyPI, so
-# rehearsing the pipeline carries no risk of spending a real version number.
+# Both go to PyPI and both use the same OIDC identity, so a green rehearsal
+# means a real release will authenticate. The rehearsal refuses to run unless
+# the version it built is already on PyPI, so it cannot become a back door for
+# publishing something unreviewed.
 
 on:
   release:
@@ -45,29 +48,6 @@ jobs:
             exit 1
           fi
 
-      # A dry run needs a version TestPyPI has not seen, or the upload is
-      # rejected as a duplicate and the rehearsal tells you nothing. The edit is
-      # to the checkout only and is never committed.
-      - name: Give the dry run a throwaway version
-        if: github.event_name == 'workflow_dispatch'
-        run: |
-          uv run python - <<'PY'
-          import pathlib, re, os
-          path = pathlib.Path("pyproject.toml")
-          text = path.read_text()
-          head, sep, rest = text.partition("[project]")
-          table, sep2, tail = rest.partition("\n[")
-          new = re.sub(
-              r'^version = "([^"]+)"',
-              lambda m: f'version = "{m.group(1)}.dev{os.environ["GITHUB_RUN_NUMBER"]}"',
-              table,
-              count=1,
-              flags=re.M,
-          )
-          path.write_text(head + sep + new + sep2 + tail)
-          print("building as", re.search(r'^version = "([^"]+)"', new, re.M).group(1))
-          PY
-
       - run: uv build
       - run: uv run --with "twine>=6.1" twine check dist/*
       - uses: actions/upload-artifact@v4
@@ -75,26 +55,7 @@ jobs:
           name: dist
           path: dist/
 
-  # Rehearsal. Same OIDC handshake, same environment gate, same action -- only
-  # the index differs, so a green run here means the real one will work.
-  testpypi:
-    if: github.event_name == 'workflow_dispatch'
-    needs: build
-    runs-on: ubuntu-latest
-    environment: testpypi
-    permissions:
-      id-token: write
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: dist
-          path: dist/
-      - uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          repository-url: https://test.pypi.org/legacy/
-
-  pypi:
-    if: github.event_name == 'release'
+  publish:
     needs: build
     runs-on: ubuntu-latest
     environment: pypi
@@ -107,4 +68,27 @@ jobs:
         with:
           name: dist
           path: dist/
+
+      # A dispatch is a rehearsal. If the built version is not already on PyPI
+      # then uploading it would be a real release that nobody tagged or
+      # reviewed, so stop instead.
+      - name: A rehearsal may not publish anything new
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          version=$(basename dist/*.whl | cut -d- -f2)
+          code=$(curl -sS -o /dev/null -w '%{http_code}' \
+            "https://pypi.org/pypi/nopeek/${version}/json")
+          echo "nopeek ${version} on PyPI -> HTTP ${code}"
+          if [ "$code" != "200" ]; then
+            echo "::error::version ${version} is not on PyPI, so this dispatch would publish it. Cut a GitHub Release instead."
+            exit 1
+          fi
+          echo "Already published, so the upload below will skip the files and"
+          echo "only the trusted-publishing handshake is exercised."
+
       - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          # On a rehearsal the files are already on PyPI and are skipped, which
+          # is what makes the run green. On a real release nothing is skipped,
+          # and a duplicate is an error, as it should be.
+          skip-existing: ${{ github.event_name == 'workflow_dispatch' }}

@@ -27,31 +27,23 @@ never been published).
    (**Settings → Environments → New environment**). Adding yourself as a
    required reviewer means every upload needs an explicit approval.
 
-## Rehearsing it against TestPyPI
+## Rehearsing it
 
 An untested publish workflow gets tested by a real release, which is a poor
-place to find out the OIDC claim is misconfigured. `release.yml` therefore has a
-second way in: **Actions → release → Run workflow** publishes to TestPyPI
-instead, as a throwaway `.devN` version numbered from the run, so a rehearsal
-never spends a real version and can be repeated as often as you like.
+place to find out the OIDC claim is misconfigured. So **Actions → release → Run
+workflow** does a dry run against PyPI itself: same identity, same environment
+gate, same publishing action, no upload.
 
-A dispatch can only reach TestPyPI and a release can only reach PyPI. They are
-separate jobs with separate conditions and separate environments, so neither can
-be mistaken for the other.
+It works because the files it builds are already published. The job checks that
+first and refuses to continue if they are not, so a dispatch can never become a
+back door for releasing something untagged and unreviewed; and it passes
+`skip-existing` so the already-published files are skipped rather than
+rejected, which is what lets the run go green.
 
-Setting it up mirrors the PyPI side, on a separate account:
-
-1. Register at https://test.pypi.org (its accounts and tokens are entirely
-   separate from PyPI's) and enable 2FA.
-2. Because nothing has been published there yet, this one *is* a **pending**
-   publisher: **Your projects → Publishing → Add a pending publisher**, with
-   PyPI project name `nopeek`, owner `poglesbyg`, repository `nopeek`, workflow
-   `release.yml`, environment `testpypi`.
-3. Create a GitHub environment named `testpypi`. Leave this one without a
-   required reviewer — the point of a rehearsal is that it is cheap to run.
-
-A green dispatch exercises the same OIDC handshake, the same environment gate
-and the same publishing action as the real thing. Only the index differs.
+A green dispatch means a real release will authenticate. A red one with
+`invalid-publisher` means the publisher on PyPI does not match the claims, and
+the error prints the claims GitHub actually sent -- compare them against
+Publishing settings field by field.
 
 ## Cutting a release
 

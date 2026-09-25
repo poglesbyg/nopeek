@@ -1,0 +1,18 @@
+name = "skforecast/ForecasterRecursive lag matrix"
+description = "The training matrix a recursive forecaster builds from a series."
+url = "https://github.com/skforecast/skforecast"
+category = "library"
+
+[source]
+kind = "pypi"
+package = "skforecast"
+
+[entry]
+pipeline = "survey.adapters:skforecast_lag_matrix"
+data = "survey.adapters:series"
+
+[roles]
+time = "t"
+# The first cuts leave too little history for a 3-lag forecaster to run at all,
+# which it says so rather than passing quietly. Start past that.
+cuts = 4

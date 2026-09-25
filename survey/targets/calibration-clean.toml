@@ -1,6 +1,7 @@
 name = "calibration/clean"
 description = "Known-good pipeline. If this reports a leak, the harness is broken."
 expect = "clean"
+category = "calibration"
 
 [source]
 kind = "none"

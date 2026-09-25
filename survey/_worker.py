@@ -56,6 +56,7 @@ def run(spec: dict[str, Any]) -> dict[str, Any]:
         "seconds": time.perf_counter() - started,
         "url": spec.get("url", ""),
         "expect": spec.get("expect"),
+        "category": spec.get("category", "library"),
         "summary": str(report),
     }
 
@@ -71,6 +72,7 @@ def main() -> int:
             "message": f"{type(exc).__name__}: {exc}",
             "url": spec.get("url", ""),
             "expect": spec.get("expect"),
+            "category": spec.get("category", "library"),
         }
     print(json.dumps(payload))
     return 0

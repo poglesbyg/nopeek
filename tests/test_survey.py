@@ -163,7 +163,11 @@ def test_cli_runs_the_calibration_targets(tmp_path, capsys):
 
     code = main(["--only", "calibration/clean", "calibration/leaky", "--out", str(tmp_path)])
     assert code == 0
-    assert "1/2 pipelines leak" in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert "calibration/clean" in out and "calibration/leaky" in out
+    # Calibration targets are outside the headline rate, so selecting only those
+    # leaves nothing to report a rate over -- and must not invent one.
+    assert "pipelines leak" not in out
     assert (tmp_path / "REPORT.md").exists()
 
 
@@ -172,3 +176,69 @@ def test_cli_rejects_an_unknown_target(tmp_path):
 
     with pytest.raises(SystemExit):
         main(["--only", "no/such/target", "--out", str(tmp_path)])
+
+
+# --- categories ---------------------------------------------------------------
+
+
+def _mixed() -> list[spec.Result]:
+    return [
+        spec.Result(name="lib-ok", status="clean", columns=3, category="library"),
+        spec.Result(name="lib-bad", status="leaks", columns=3, leaking=1, category="library"),
+        spec.Result(name="proj", status="clean", columns=9, category="project"),
+        spec.Result(name="usage", status="leaks", columns=1, leaking=1, category="usage"),
+        spec.Result(name="cal", status="leaks", columns=1, leaking=1, category="calibration"),
+        spec.Result(name="broken", status="error", category="library"),
+    ]
+
+
+def test_the_rate_excludes_usage_and_calibration():
+    """A usage target is built to leak; counting it as evidence is circular."""
+    stats = report.summarise(_mixed())
+    assert stats["counted"] == 4  # 3 library + 1 project
+    assert stats["ran"] == 3  # one library target did not run
+    assert stats["leaking"] == 1
+    assert stats["leak_rate"] == round(1 / 3, 4)
+
+
+def test_by_category_counts_every_target():
+    counts = report.by_category(_mixed())
+    assert counts["library"] == {"clean": 1, "leaks": 1, "did_not_run": 1}
+    assert counts["usage"] == {"clean": 0, "leaks": 1, "did_not_run": 0}
+    assert counts["calibration"] == {"clean": 0, "leaks": 1, "did_not_run": 0}
+
+
+def test_markdown_separates_the_categories():
+    text = report.to_markdown(_mixed())
+    for heading in ("## library", "## project", "## usage", "## calibration"):
+        assert heading in text
+    assert "counting them would be circular" in text
+    assert "| category | clean | leaks | did not run |" in text
+
+
+def test_category_is_validated():
+    base = {
+        "name": "x",
+        "entry": {"pipeline": "a:b", "data": "c:d"},
+        "roles": {"time": "t"},
+        "source": {"kind": "none"},
+    }
+    assert spec.from_dict(base).category == "library"
+    assert spec.from_dict({**base, "category": "usage"}).category == "usage"
+    with pytest.raises(ValueError, match="category must be one of"):
+        spec.from_dict({**base, "category": "vibes"})
+
+
+def test_every_shipped_target_declares_a_real_category():
+    for target in spec.load_all(TARGETS):
+        assert target.category in spec.CATEGORIES, target.name
+
+
+def test_the_installer_works_without_pip():
+    """A uv virtualenv has no pip, which once made every pypi target fail."""
+    from pathlib import Path
+
+    command = runner._install_command("somepkg", Path("/tmp/site"))
+    assert command[1:3] in (["pip", "install"], ["-m", "pip"])
+    assert "--target" in command
+    assert command[-1] == "somepkg"

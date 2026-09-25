@@ -1,0 +1,15 @@
+name = "feature-engine/ExpandingWindowFeatures"
+description = "Expanding-window statistics over a single series, used as documented."
+url = "https://github.com/feature-engine/feature_engine"
+category = "library"
+
+[source]
+kind = "pypi"
+package = "feature-engine"
+
+[entry]
+pipeline = "survey.adapters:feature_engine_expanding"
+data = "survey.adapters:series"
+
+[roles]
+time = "t"

@@ -1,7 +1,8 @@
 name = "poglesbyg/sepsis-early-warning"
-description = "ICU early-warning features: LOCF, recency, rolling windows, clinical scores."
+description = """ICU early-warning features: LOCF, recency, rolling windows, clinical scores. Reports a leak, and the project agrees: rolling_summaries rolls the whole patient-sorted array in one pass, so pandas' accumulator carries state across admission boundaries. Around 1e-7 on real values; tracked upstream as a strict xfail."""
 url = "https://github.com/poglesbyg/sepsis-early-warning"
-expect = "clean"
+expect = "leaks"
+category = "project"
 
 [source]
 kind = "git"

@@ -1,0 +1,15 @@
+name = "usage/rolling window without grouping"
+description = "A trailing window over a stacked panel with the grouping left out, so entities bleed into each other."
+category = "usage"
+expect = "leaks"
+
+[source]
+kind = "none"
+
+[entry]
+pipeline = "survey.adapters:rolling_without_grouping"
+data = "survey.adapters:panel"
+
+[roles]
+time = "t"
+group = "entity"

@@ -1,0 +1,16 @@
+name = "usage/scaler fitted on the whole frame"
+description = "StandardScaler fitted over every row before splitting. The call looks identical whether or not it leaks, which is why no linter can see it."
+category = "usage"
+expect = "leaks"
+
+[source]
+kind = "pypi"
+package = "scikit-learn"
+
+[entry]
+pipeline = "survey.adapters:scale_on_the_whole_frame"
+data = "survey.adapters:panel"
+
+[roles]
+time = "t"
+group = "entity"

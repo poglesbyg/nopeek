@@ -7,6 +7,7 @@ Nothing here sandboxes anything -- process isolation is for crashes, not malice.
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import os
 import shutil
@@ -53,8 +54,23 @@ def prepare(source: Source, workdir: Path, base_dir: Path | None = None) -> dict
 
     assert source.package is not None
     target_dir = workdir / "site"
-    _run(
-        [
+    _run(_install_command(source.package, target_dir), "install")
+    return {"PYTHONPATH": str(target_dir)}
+
+
+def _install_command(package: str, target_dir: Path) -> list[str]:
+    """Install into a directory, with whatever installer this environment has.
+
+    A uv-created virtualenv contains no pip at all, so reaching straight for
+    `python -m pip` fails with "No module named pip" -- which is how this survey
+    came to run not one of its third-party targets, on a project whose own
+    instructions say to use uv.
+    """
+    uv = shutil.which("uv")
+    if uv:
+        return [uv, "pip", "install", "--quiet", "--target", str(target_dir), package]
+    if importlib.util.find_spec("pip") is not None:
+        return [
             sys.executable,
             "-m",
             "pip",
@@ -62,11 +78,12 @@ def prepare(source: Source, workdir: Path, base_dir: Path | None = None) -> dict
             "--quiet",
             "--target",
             str(target_dir),
-            source.package,
-        ],
-        "pip install",
+            package,
+        ]
+    raise PreparationError(
+        "no installer available: this environment has neither uv nor pip, so a "
+        "pypi target cannot be fetched"
     )
-    return {"PYTHONPATH": str(target_dir)}
 
 
 def _run(command: list[str], what: str) -> None:
@@ -85,6 +102,7 @@ def run_target(target: Target, *, keep: bool = False) -> Result:
         "data": target.data,
         "url": target.url,
         "expect": target.expect,
+        "category": target.category,
         "roles": {
             "time": target.roles.time,
             "group": target.roles.group,
@@ -106,6 +124,7 @@ def run_target(target: Target, *, keep: bool = False) -> Result:
                 message=str(exc),
                 url=target.url,
                 expect=target.expect,
+                category=target.category,
                 seconds=time.perf_counter() - started,
             )
 
@@ -131,6 +150,7 @@ def run_target(target: Target, *, keep: bool = False) -> Result:
                 message=f"exceeded {target.timeout_seconds}s",
                 url=target.url,
                 expect=target.expect,
+                category=target.category,
                 seconds=time.perf_counter() - started,
             )
 
@@ -146,6 +166,7 @@ def run_target(target: Target, *, keep: bool = False) -> Result:
             message=" / ".join(tail),
             url=target.url,
             expect=target.expect,
+            category=target.category,
             seconds=time.perf_counter() - started,
         )
 

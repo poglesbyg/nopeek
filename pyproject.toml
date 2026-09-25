@@ -90,6 +90,14 @@ module = ["pandas.*"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
-# The survey imports its targets' code, which is not installed here by design.
-module = ["sepsis.*", "tomli"]
+# The survey imports its targets' code, which is not installed here by design:
+# the runner installs each target into a throwaway environment at run time.
+module = [
+    "sepsis.*",
+    "feature_engine.*",
+    "skforecast.*",
+    "sklearn.*",
+    "tsfresh.*",
+    "tomli",
+]
 ignore_missing_imports = true

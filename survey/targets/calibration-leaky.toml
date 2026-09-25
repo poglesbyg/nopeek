@@ -1,6 +1,7 @@
 name = "calibration/leaky"
 description = "Known-bad pipeline: a bfill and a whole-dataset z-score. Must be caught."
 expect = "leaks"
+category = "calibration"
 
 [source]
 kind = "none"

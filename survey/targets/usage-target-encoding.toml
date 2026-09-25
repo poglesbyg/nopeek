@@ -1,0 +1,18 @@
+name = "usage/target encoding before the split"
+description = "MeanEncoder fitted once over every row, label included. The encoder is correct; the code around it is not."
+url = "https://github.com/feature-engine/feature_engine"
+category = "usage"
+expect = "leaks"
+
+[source]
+kind = "pypi"
+package = "feature-engine"
+
+[entry]
+pipeline = "survey.adapters:target_encode_before_splitting"
+data = "survey.adapters:panel"
+
+[roles]
+time = "t"
+group = "entity"
+ignore = ["label"]

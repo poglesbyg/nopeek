@@ -24,6 +24,28 @@ container or a throwaway VM.** The worker subprocess exists so that a crashing
 pipeline costs one row of the table; it is not a sandbox and does not pretend to
 be one.
 
+## Categories
+
+Every target says which claim it tests, because mixing them into one number
+would be dishonest in both directions:
+
+| category | the question |
+|---|---|
+| `library` | does this library's transformer do what it says? |
+| `project` | does this real project's pipeline leak? |
+| `usage` | does this everyday pattern leak? (the library is behaving correctly) |
+| `calibration` | does the harness still work? |
+
+**The headline rate covers `library` and `project` only.** A usage target is
+built to leak, so counting it as evidence that pipelines leak is circular; a
+calibration target says nothing except whether the harness is alive. Both are
+still reported, in their own sections, outside the number.
+
+The distinction matters most for the usage targets, because each of them uses
+a perfectly correct library. `StandardScaler` is not broken. Fitting it on the
+whole frame before splitting is, and the call looks identical either way --
+which is exactly why a linter cannot see it and re-running the code can.
+
 ## Adding a target
 
 ```toml

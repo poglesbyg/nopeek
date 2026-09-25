@@ -26,6 +26,20 @@ else:  # pragma: no cover - exercised on the oldest-supported leg of CI
 
 KINDS = ("none", "local", "git", "pypi")
 
+# What claim a target tests. Mixing these into one number would be dishonest in
+# both directions: a usage target is *built* to leak, so counting it as evidence
+# that libraries leak is circular, and a calibration target says nothing about
+# anything except whether the harness still works.
+CATEGORIES = {
+    "library": "does this library's transformer do what it says?",
+    "usage": "does this everyday pattern leak? (the library is behaving correctly)",
+    "project": "does this real project's pipeline leak?",
+    "calibration": "does the harness still work?",
+}
+# The headline rate is over these. A usage target is a demonstration, not a
+# sample, and a calibration target is neither.
+COUNTED = ("library", "project")
+
 
 @dataclass(frozen=True)
 class Source:
@@ -66,6 +80,7 @@ class Target:
     url: str = ""
     timeout_seconds: int = 600
     expect: str | None = None
+    category: str = "library"
     base_dir: Path | None = None
     """Directory of the TOML file, which relative local paths resolve against."""
 
@@ -100,6 +115,12 @@ def from_dict(
     if expect not in (None, "clean", "leaks"):
         raise ValueError(f"{origin}: expect must be 'clean' or 'leaks', got {expect!r}")
 
+    category = raw.get("category", "library")
+    if category not in CATEGORIES:
+        raise ValueError(
+            f"{origin}: category must be one of {sorted(CATEGORIES)}, got {category!r}"
+        )
+
     return Target(
         name=raw["name"],
         description=raw.get("description", ""),
@@ -110,6 +131,7 @@ def from_dict(
         source=Source(**source_raw),
         timeout_seconds=int(limits.get("timeout_seconds", 600)),
         expect=expect,
+        category=category,
         base_dir=base_dir,
     )
 
@@ -136,6 +158,7 @@ class Result:
     seconds: float = 0.0
     url: str = ""
     expect: str | None = None
+    category: str = "library"
     extra: dict[str, Any] = field(default_factory=dict)
 
     @property
@@ -156,6 +179,7 @@ class Result:
             "seconds": round(self.seconds, 2),
             "url": self.url,
             "expect": self.expect,
+            "category": self.category,
         }
 
     @classmethod
@@ -171,4 +195,5 @@ class Result:
             seconds=raw.get("seconds", 0.0),
             url=raw.get("url", ""),
             expect=raw.get("expect"),
+            category=raw.get("category", "library"),
         )
